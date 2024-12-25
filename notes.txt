@@ -1,0 +1,108 @@
+# Deploy Elasticsearch Cluster on k8s using ES-Operator
+install custom resource definitions
+kubectl create -f https://download.elastic.co/downloads/eck/2.16.0/crds.yaml
+
+Install the operator with its RBAC rules
+kubectl apply -f https://download.elastic.co/downloads/eck/2.16.0/operator.yaml
+
+create namespace for elasticsearch and deploy elasticsearch cluster with one node 
+kubectl create namespace elasticsearch
+kubectl apply -f elasticsearch.yaml
+
+
+get cred 
+USER = elastic
+PASSWORD=$(kubectl get secret -n elasticsearch elasticsearch-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
+echo $PASSWORD
+
+# access from host
+kubectl apply -f externalsvc.yaml 
+minikube tunnel
+ go to http://localhost:9200  enter username and password 
+
+
+
+
+# Configure Prometheus Alerts
+
+my grafana and Prometheus are in the monitoring namespace seans this taks is only to write alerts i used my existing prometheus.  
+First, i installed elasticsearch exporter with helm chart and set the es.uri to the internal ES k8s uri 
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install elasticexporter -n monitoring prometheus-community/prometheus-elasticsearch-exporter \
+ --set es.uri="http://elastic:$PASSWORD@elasticsearch-es-http.elasticsearch.svc.cluster.local:9200"
+
+
+
+# Apply Elasticsearch Alerts
+kubectl apply -f elasticsearch-alerts.yaml
+Verify 
+kubectl get prometheusrules -n monitoring
+
+
+Add anotations to scrape elasticsearch
+kubectl annotate service elasticexporter-prometheus-elasticsearch-exporter -n monitoring prometheus.io/scrape="true" prometheus.io/path="/metrics" prometheus.io/port="9108"
+
+
+# Add alerts 
+To add alerts, I edit the configMap of my prometheus server and added those lines 
+this also can be done by applying the configMap  
+kubectl apply -f alerting_rules.yaml
+or to edit your existing configuration with 
+kubectl edit configmap/prometheus-server -n monitoring
+the part that i added was the  alerting_rules.yml: | and the alerts inside this file.
+
+alerts:
+High CPU usage detected
+This rule uses the rate(container_cpu_usage_seconds_total[2m]) function, which calculates the average rate of CPU usage over a 2-minute window.
+The rule triggers an alert if the CPU usage rate exceeds 0.5 over the last 2 minutes.
+
+Using more than 80% of its allocated CPU for 5 minutes
+This rule calculates the rate of CPU usage over a 5-minute window (rate(container_cpu_usage_seconds_total[5m])), but it also divides the CPU usage by the CPU quota allocated to the pod (sum(container_spec_cpu_quota / container_spec_cpu_period) by (pod)).
+It triggers an alert if the CPU usage exceeds 80% of the allocated CPU over the last 5 minutes.
+
+MemoryAlerts Rule
+Memory Usage Relative to Allocation: This rule calculates the percentage of memory usage by a pod relative to its allocated memory limit.
+It compares the actual memory used (container_memory_usage_bytes) to the container's memory limit (container_spec_memory_limit_bytes).
+The alert triggers when a pod uses more than 80% of its allocated memory for a continuous 5-minute period.
+
+ClusterHealthAlerts Rule
+This rule checks the kube_node_status_condition metric for nodes that have a NotReady status
+The alert triggers when a node is in the NotReady state for more than 5 minutes.
+The status="false" condition indicates that the node is not ready, and == 1 ensures the alert is triggered when this condition is met.
+The alert is marked as critical, indicating that a node is in a non-operational state
+
+ElasticsearchHealthAlerts
+This alert will notify you if the cluster health drops below a certain threshold (e.g., "yellow" or "red")
+which typically means issues like missing replicas or insufficient available nodes to allocate shards.
+
+
+Add support for Service Mesh
+
+installation 
+curl -L https://istio.io/downloadIstio | sh -
+cd istio-<version>
+export PATH=$PWD/bin:$PATH
+istioctl install --set profile=demo -y
+
+integrate with prometheus by adding scrap config to prometheuse.yaml (if you already applied the configMap, you dont have to add this becouse its already there)
+    scrape_configs:
+    - job_name: 'istio-mesh'
+      honor_labels: true
+      kubernetes_sd_configs:
+        - role: pod
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_label_istio]
+          action: keep
+          regex: istio-system;.* # Adjust namespace if Istio is in a different namespace
+        - source_labels: [__meta_kubernetes_pod_container_port_name]
+          action: keep
+          regex: .*http-envoy-prom
+
+
+enable sidecar injection to monitor elasticsearch with istio 
+kubectl label namespace elasticsearch istio-injection=enabled --overwrite
+
+Restart the statefulset deployment to inisialaze the istio sidecar
+kubectl rollout restart statefulset elasticsearch-es-fundguardes -n elasticsearch
+

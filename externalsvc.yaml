@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-external-svc
+  namespace: elasticsearch
+
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 9200
+    targetPort: 9200
+  selector:
+    elasticsearch.k8s.elastic.co/cluster-name: elasticsearch
