@@ -131,5 +131,8 @@ kubectl rollout restart statefulset <elasticsearch-statefulset-name> -n elastics
 * Rule: elasticsearch_cluster_health_status{status=~"yellow|red"}
 * Description: Triggers if the Elasticsearch cluster health status is yellow or red.
 
-![Elasticsearch Cluster](./img/alerts.png)
+![Elasticsearch](./img/alerts.png)
 
+![ISTIO](./img/isto.png)
+
+![Rules](./img/rules.png)
