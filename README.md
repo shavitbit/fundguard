@@ -133,6 +133,6 @@ kubectl rollout restart statefulset <elasticsearch-statefulset-name> -n elastics
 
 ![Elasticsearch](./img/alerts.png)
 
-![ISTIO](./img/isto.png)
+![ISTIO](./img/istio.png)
 
 ![Rules](./img/rules.png)
