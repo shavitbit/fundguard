@@ -1,10 +1,13 @@
 
+# Elasticsearch Solution for Kubernetes
+In this mini-project, I created manifests for installing an Elasticsearch cluster, Prometheus with added alerts, an Elasticsearch Node Exporter, and Istio as a service mesh.
+
 ## Prerequisites
  - minikube
  - trriger the command minikube tunnel
 
 ## Installation
-The start.sh script will install anything you need for this project:
+### start.sh:
 
 1. Install Elasticsearch Operator with RBAC Rules
 2. Deploy Elasticsearch Cluster one node
