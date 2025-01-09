@@ -35,5 +35,5 @@ istioctl install --set profile=demo -y
 
 # Enable Istio Sidecar for Elasticsearch
 kubectl label namespace elasticsearch istio-injection=enabled --overwrite
-kubectl rollout restart statefulset elasticsearch-es-fundguardes -n elasticsearch
+kubectl rollout restart statefulset elasticsearch-es-orenes -n elasticsearch
 
