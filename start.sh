@@ -6,8 +6,6 @@ kubectl apply -f elasticsearch.yaml
 
 USERELASTIC="elastic"
 PASSWORD=$(kubectl get secret -n elasticsearch elasticsearch-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
-echo $PASSWORD
-
 
 kubectl apply -f externalsvc.yaml
 
